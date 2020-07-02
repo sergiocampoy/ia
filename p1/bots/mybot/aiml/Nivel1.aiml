@@ -1,0 +1,261 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<aiml version="2.0">
+    
+    <category>
+        <pattern>
+            buenas
+        </pattern>
+        <template>
+            hola, quieres reservar?
+            <think>
+                <set name="topic">elegir_dia</set>
+            </think>
+        </template>
+    </category>
+
+    <topic name="elegir_dia">
+
+        <category>
+            <pattern>
+                si ^
+            </pattern>
+            <template>
+                Bien, para qué día quieres la reserva
+            </template>
+        </category>
+
+        <category>
+            <pattern>
+                no
+            </pattern>
+            <template>
+                Ok, que pases un buen dia
+                <think><set name="topic">unknown</set></think>
+            </template>
+        </category>
+
+        <category>
+            <pattern>
+                <set>number</set> ^ <set>month_es</set> ^ (<set>number</set>)
+            </pattern>
+            <template>
+                <think>
+                    <!-- pasa la fecha a formato dd-mm-yy -->
+                    <set name="fecha">
+                        <srai>
+                            convertir fecha <star index="1"/> <star index="3"/> <star index="5"/>
+                        </srai>
+                    </set>
+                    <!-- obtener si está libre o no el día -->
+                    <srai>libre <get name="fecha"/></srai>
+                    <set var="libre">
+                        <srai>libre <get name="fecha"/></srai>
+                    </set>
+                    <condition var="libre">
+                        <li value="TRUE">
+                            <set var="salida">Sí, ese día tenemos huecos libres. A que hora te viene bien?</set>
+                            <set name="topic">elegir_hora</set>
+                        </li>
+                        <li value="FALSE">
+                            <set var="salida">Lo siento, pero ese día no hay hueco. Dime otro día, porfa.</set>
+                        </li>
+                    </condition>
+                </think>
+                <get var="salida"/>
+            </template>
+        </category>
+    </topic>
+
+    <topic name="elegir_hora">
+
+        <!-- recibe la hora -->
+        <category>
+            <pattern>
+                ^ <set>hora</set>
+            </pattern>
+            <template>
+                <think>
+                    <set var="ocupado">
+                        <srai>is busy day <get name="fecha"/> at <star index="2"/></srai>
+                    </set>
+                    <condition var="ocupado">
+                        <li value="TRUE">
+                            <set var="salida">Lo siento, a esa hora está ocupado. Te viene bien a alguna de estas horas?</set>
+                            <set var="salida">
+                                <get var="salida"/> <srai>lista <get name="fecha"/></srai>
+                            </set>
+                        </li>
+                        <li value="FALSE">
+                            <set var="salida">Perfecto, nos vemos a esa hora. Que pase un buen día!</set>
+                            <srai>mark OCUPADO at <star index="2"/> on <get name="fecha"/></srai>
+                            <set name="topic">unknown</set>
+                        </li>
+                    </condition>
+                </think>
+                <get var="salida"/>
+            </template>
+        </category>
+
+        <category>
+            <pattern>
+                si ^
+            </pattern>
+            <template>
+                A que hora te viene bien?
+            </template>
+        </category>
+    </topic>
+
+    <!-- funciones -->
+    <!-- almacenar la fecha como dd-mm-yy -->
+    <category>
+        <pattern>
+            convertir fecha <set>number</set> <set>month_es</set> (<set>number</set>)
+        </pattern>
+        <template>
+            <think>
+                <!-- lectura del día -->
+                <set var="dia"><star index="1"/></set>
+                <!-- calcula la longitud del numero -->
+                <set var="length">
+                    <srai>COUNT <srai>DELETREA <star index="1"/></srai></srai>
+                </set>
+                <!-- si la longitud es 1, añade un 0 al principio -->
+                <condition var="length">
+                    <li value="1">
+                        <set var="dia">0<get var="dia"/></set>
+                    </li>
+                </condition>
+                <!-- lectura del mes -->
+                <set var="mes_es"><star index="2"/></set>
+                <!-- convierte el mes de texto a número -->
+                <set var="mes">
+                    <map name="month_index_ES">
+                        <get var="mes_es"/>
+                    </map>
+                </set>
+                <!-- lectura del año -->
+                <!-- si el usuario no dice nada o da una mala fecha, asume 2020 -->
+                <set var="year">2020</set>
+                <set var="length">
+                    <srai>COUNT <srai>DELETREA <star index="3"/></srai></srai>
+                </set>
+                <condition var="length">
+                    <li value="4">
+                        <set var="year"><star index="3"/></set>
+                    </li>
+                </condition>
+                <!-- convierte la fecha de 20XX a XX -->
+                <set var="decada">
+                    <srai>DELETREA <get var="year"/></srai>
+                </set>
+                <set var="year">
+                    <srai>
+                        SELECTITEM 3 IN <get var="decada"/>
+                    </srai><srai>
+                        SELECTITEM 4 IN <get var="decada"/>
+                    </srai>
+                </set>
+                <!-- almacena la fecha como dd-mm-yy -->
+            </think>
+            <get var="dia"/>-<get var="mes"/>-<get var="year"/>
+        </template>
+    </category>
+
+    <!-- devuelve si hay alguna hora libre ese día o no -->
+    <category>
+        <pattern>
+            libre *
+        </pattern>
+        <template>
+            <think>
+                <!-- obtiene la lista del día -->
+                <set var="lista"><srai>LIST OF DAY <star/></srai></set>
+                    <set var="lista">
+                        <srai>sublist from 9 to 21 of <get var="lista"/></srai>
+                    </set>
+                <!-- declara la variable iteradora -->
+                <set var="item">
+                    <srai>ITERATE <get var="lista"/></srai>
+                </set>
+                <!-- declara la variable resultado -->
+                <set var="libre">FALSE</set>
+                <condition var="item">
+                    <!-- condición de salida si no hay hueco -->
+                    <li value="$"></li>
+                    <!-- condición de salida si hay un hueco libre -->
+                    <li value="null">
+                        <think>
+                            <set var="libre">TRUE</set>
+                        </think>
+                    </li>
+                    <!-- por defecto -->
+                    <li>
+                        <get var="item"/>
+                        <think>
+                            <set var="item">
+                                <srai>NEXT</srai>
+                            </set>
+                        </think>
+                        <loop/>
+                    </li>
+                </condition>
+            </think>
+            <get var="libre"/>
+        </template>
+    </category>
+
+    <!-- debug -->
+    <category>
+        <pattern>topic</pattern>
+        <template><get name="topic"/></template>
+    </category>
+
+    <category>
+        <pattern>
+            lista *
+        </pattern>
+        <template>
+            <think>
+                <set var="fecha">
+                    <get name="fecha"/>
+                </set>
+
+                <set var="franja"><star index="4"/></set>
+                <set var="i">08</set>
+                <set var="fin">21</set>
+                <condition var="franja">
+                    <li value="manyana">
+                        <set var="fin">13</set>
+                    </li>
+                    <li value="tarde">
+                        <set var="i">13</set>
+                    </li>
+                </condition>
+                <set var="salida"></set>
+                <condition var="i">
+                    <!-- condicion de salida -->
+                    <li><value><get var="fin"/></value></li>
+                    <li>
+                        <set var="libre">
+                            <srai>is busy day <get var="fecha"/> at <get var="i"/>:00</srai>
+                        </set>
+                        <!-- si está libre, añade a la salida -->
+                        <condition var="libre">
+                            <li value="FALSE">
+                                <set var="salida">
+                                    <get var="salida"/> <get var="i"/>:00
+                                </set>
+                            </li>
+                        </condition>
+                        <!-- aumenta la variable hora -->
+                        <set var="i"><map name="siguiente_hora"><get var="i"/></map></set>
+                        <loop/>
+                    </li>
+                </condition>
+            </think>
+            <get var="salida"/>
+        </template>
+    </category>
+
+</aiml>

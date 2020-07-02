@@ -1,0 +1,11 @@
+Bugs conocidos:
+  [] Se bloquea si el subdestino está detrás de un muro y no puede acceder con el mapa que conoce
+    Solucion: generar una lista de subdestinos
+
+Posibles optimizaciones
+  [V] Esperar a que el aldeano se mueva solo si tiene que avanzar
+  [] Usar A* en vez de coste minimo
+  [] Recargar menos batería si queda poco tiempo
+  [] Ir a por las zapas/bikini si están más cerca que el destino
+  [] Esquivar a los aldeanos en vez de esperar a que se muevan
+  [] Provocar fallo en A* cuando el coste es muy alto y probar siguiente subdestino
